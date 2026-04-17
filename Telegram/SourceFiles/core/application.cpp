@@ -1160,19 +1160,27 @@ void Application::checkStartUrls() {
 
 bool Application::openLocalUrl(const QString &url, QVariant context) {
 	const auto urlTrimmed = url.trimmed();
-	const auto protocol = u"tg://"_q;
-	if (urlTrimmed.startsWith(protocol, Qt::CaseInsensitive)
-		&& !passcodeLocked()) {
-		const auto command = urlTrimmed.mid(protocol.size());
-		const auto my = context.value<ClickHandlerContext>();
-		const auto controller = my.sessionWindow.get()
-			? my.sessionWindow.get()
-			: _lastActivePrimaryWindow
-			? _lastActivePrimaryWindow->sessionController()
-			: nullptr;
-		if (TryRouterForLocalUrl(controller, command)) {
-			return true;
+	// Accept both opengram:// (our registered scheme) and tg://
+	// (so messages containing legacy tg:// links keep working inside the app).
+	const auto protocols = { u"opengram://"_q, u"tg://"_q };
+	if (!passcodeLocked()) {
+		for (const auto &protocol : protocols) {
+			if (urlTrimmed.startsWith(protocol, Qt::CaseInsensitive)) {
+				const auto command = urlTrimmed.mid(protocol.size());
+				const auto my = context.value<ClickHandlerContext>();
+				const auto controller = my.sessionWindow.get()
+					? my.sessionWindow.get()
+					: _lastActivePrimaryWindow
+					? _lastActivePrimaryWindow->sessionController()
+					: nullptr;
+				if (TryRouterForLocalUrl(controller, command)) {
+					return true;
+				}
+			}
 		}
+	}
+	if (urlTrimmed.startsWith(u"opengram://"_q, Qt::CaseInsensitive)) {
+		return openCustomUrl("opengram://", LocalUrlHandlers(), url, context);
 	}
 	return openCustomUrl("tg://", LocalUrlHandlers(), url, context);
 }
@@ -1182,7 +1190,7 @@ bool Application::openInternalUrl(const QString &url, QVariant context) {
 }
 
 QString Application::changelogLink() const {
-	return u"https://telegramdesktop.github.io/tdesktop/changelog/"_q;
+	return u"https://github.com/opengram-server/tdesktop/releases"_q;
 }
 
 bool Application::openCustomUrl(
@@ -1889,20 +1897,9 @@ void Application::RegisterUrlScheme() {
 	base::Platform::RegisterUrlScheme(base::Platform::UrlSchemeDescriptor{
 		.executable = Platform::ExecutablePathForShortcuts(),
 		.arguments = arguments,
-		.protocol = u"tg"_q,
-		.protocolName = u"Telegram Link"_q,
-		.shortAppName = u"tdesktop"_q,
-		.longAppName = QCoreApplication::applicationName(),
-		.displayAppName = AppName.utf16(),
-		.displayAppDescription = AppName.utf16(),
-	});
-
-	base::Platform::RegisterUrlScheme(base::Platform::UrlSchemeDescriptor{
-		.executable = Platform::ExecutablePathForShortcuts(),
-		.arguments = arguments,
-		.protocol = u"tonsite"_q,
-		.protocolName = u"TonSite Link"_q,
-		.shortAppName = u"tdesktop"_q,
+		.protocol = u"opengram"_q,
+		.protocolName = u"Opengram Link"_q,
+		.shortAppName = u"opengram-desktop"_q,
 		.longAppName = QCoreApplication::applicationName(),
 		.displayAppName = AppName.utf16(),
 		.displayAppDescription = AppName.utf16(),

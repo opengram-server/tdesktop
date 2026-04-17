@@ -3,6 +3,11 @@ Debug/
 Release/
 /ThirdParty/
 /Telegram/build/target
+
+# Opengram rebrand artefacts
+pubkey.asc
+lang.strings.bak
+/Telegram/Resources/langs/lang.strings.bak
 /Telegram/tests/
 /Telegram/gyp/tests/*.test
 /Telegram/out/

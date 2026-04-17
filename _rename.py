@@ -1,0 +1,45 @@
+import re
+import os
+
+os.chdir(os.path.dirname(os.path.abspath(__file__)) + "/Telegram/Resources/langs")
+
+with open("lang.strings", "r", encoding="utf-8") as f:
+    content = f.read()
+
+if not os.path.exists("lang.strings.bak"):
+    with open("lang.strings.bak", "w", encoding="utf-8") as f:
+        f.write(content)
+
+LINE_RE = re.compile(r'^(\s*"[^"]+"\s*=\s*)"((?:[^"\\]|\\.)*)"(\s*;.*)$')
+
+def replace_in_value(line: str) -> str:
+    m = LINE_RE.match(line)
+    if not m:
+        return line
+    prefix, value, suffix = m.group(1), m.group(2), m.group(3)
+
+    # URLs (longest patterns first)
+    value = value.replace("telegram.org", "opengra.me")
+    value = value.replace("https://t.me/", "https://opengra.me/")
+    value = re.sub(r'(?<!\w)t\.me/', 'opengra.me/', value)
+
+    # Brand
+    value = value.replace("Telegram Desktop", "Opengram Desktop")
+    value = re.sub(r'\bTelegram\b', 'Opengram', value)
+    value = re.sub(r'\btelegram\b', 'opengram', value)
+
+    return prefix + '"' + value + '"' + suffix
+
+
+out_lines = [replace_in_value(line) for line in content.splitlines(keepends=True)]
+
+with open("lang.strings", "w", encoding="utf-8") as f:
+    f.write("".join(out_lines))
+
+with open("lang.strings", "r", encoding="utf-8") as f:
+    new = f.read()
+
+print("Telegram remaining:", new.count("Telegram"))
+print("Opengram count:   ", new.count("Opengram"))
+print("t.me remaining:   ", new.count("t.me"))
+print("opengra.me count: ", new.count("opengra.me"))

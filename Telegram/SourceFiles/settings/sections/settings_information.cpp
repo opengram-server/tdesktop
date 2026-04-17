@@ -542,7 +542,7 @@ void SetupRows(
 		tr::lng_settings_username_label(),
 		std::move(empty)
 	) | rpl::map([](const QString &label, bool empty) {
-		return empty ? "t.me/username" : label;
+		return empty ? "opengra.me/username" : label;
 	});
 	auto usernameValue = rpl::combine(
 		std::move(username),

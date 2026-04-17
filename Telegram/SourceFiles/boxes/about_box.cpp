@@ -63,7 +63,7 @@ rpl::producer<TextWithEntities> Text3() {
 } // namespace
 
 void AboutBox(not_null<Ui::GenericBox*> box) {
-	box->setTitle(u"Telegram Desktop"_q);
+	box->setTitle(u"Opengram Desktop"_q);
 
 	auto layout = box->verticalLayout();
 
@@ -132,7 +132,7 @@ void AboutBox(not_null<Ui::GenericBox*> box) {
 }
 
 QString telegramFaqLink() {
-	const auto result = u"https://telegram.org/faq"_q;
+	const auto result = u"https://opengra.me/faq"_q;
 	const auto langpacked = [&](const char *language) {
 		return result + '/' + language;
 	};

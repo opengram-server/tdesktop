@@ -296,10 +296,10 @@ QString Row::generateName() {
 		u"https://"_q,
 		QString()
 	).replace(
-		u"t.me/+"_q,
+		u"opengra.me/+"_q,
 		QString()
 	).replace(
-		u"t.me/joinchat/"_q,
+		u"opengra.me/joinchat/"_q,
 		QString()
 	);
 }
