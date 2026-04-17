@@ -23,9 +23,23 @@ on:
 
 jobs:
   windows:
-    name: Windows x64 build
-    runs-on: windows-latest
+    name: Windows ${{ matrix.arch_label }} build
+    runs-on: ${{ matrix.arch == 'arm64' && 'windows-11-arm' || 'windows-latest' }}
     timeout-minutes: 180
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            arch_label: x64
+            libs_subdir: '\win64'
+          - arch: x64_x86
+            arch_label: x86
+            libs_subdir: ''
+          - arch: arm64
+            arch_label: arm64
+            libs_subdir: ''
 
     env:
       PREPARE_PATH: "Telegram/build/prepare/prepare.py"
@@ -40,7 +54,7 @@ jobs:
           mkdir %userprofile%\TBuild\Libraries
           mklink /d %GITHUB_WORKSPACE%\TBuild %userprofile%\TBuild
           echo TBUILD=%GITHUB_WORKSPACE%\TBuild>>%GITHUB_ENV%
-          echo LibrariesPath=%GITHUB_WORKSPACE%\TBuild\Libraries\win64>>%GITHUB_ENV%
+          echo LibrariesPath=%GITHUB_WORKSPACE%\TBuild\Libraries${{ matrix.libs_subdir }}>>%GITHUB_ENV%
 
       - name: Get repository name.
         shell: bash
@@ -85,7 +99,7 @@ jobs:
       - uses: ilammy/msvc-dev-cmd@v1
         name: Native Tools Command Prompt.
         with:
-          arch: x64
+          arch: ${{ matrix.arch }}
           sdk: ${{ env.SDK }}
 
       - name: NuGet sources.
@@ -97,8 +111,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ env.TBUILD }}\ThirdParty
-          key: ${{ runner.OS }}-x64-third-party-${{ env.CACHE_KEY }}
-          restore-keys: ${{ runner.OS }}-x64-third-party-
+          key: ${{ runner.OS }}-${{ matrix.arch }}-third-party-${{ env.CACHE_KEY }}
+          restore-keys: ${{ runner.OS }}-${{ matrix.arch }}-third-party-
 
       - name: Libraries cache.
         uses: actions/cache@v4
@@ -109,8 +123,8 @@ jobs:
             !${{ env.LibrariesPath }}\[qQ]t[_-]*
             ${{ env.LibrariesPath }}\cache_keys\*
             !${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
-          key: ${{ runner.OS }}-x64-libs-${{ env.CACHE_KEY }}
-          restore-keys: ${{ runner.OS }}-x64-libs-
+          key: ${{ runner.OS }}-${{ matrix.arch }}-libs-${{ env.CACHE_KEY }}
+          restore-keys: ${{ runner.OS }}-${{ matrix.arch }}-libs-
 
       - name: Qt cache.
         uses: actions/cache@v4
@@ -118,8 +132,8 @@ jobs:
           path: |
             ${{ env.LibrariesPath }}\[qQ]t[_-]*
             ${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
-          key: ${{ runner.OS }}-x64-qt6-${{ env.CACHE_KEY }}
-          restore-keys: ${{ runner.OS }}-x64-qt6-
+          key: ${{ runner.OS }}-${{ matrix.arch }}-qt6-${{ env.CACHE_KEY }}
+          restore-keys: ${{ runner.OS }}-${{ matrix.arch }}-qt6-
 
       - name: Libraries.
         env:
@@ -132,7 +146,11 @@ jobs:
         run: |
           cd %TBUILD%\%REPO_NAME%\Telegram
 
-          call configure.bat qt6 ^
+          set ARCH_FLAG=
+          if "${{ matrix.arch }}"=="x64_x86" set ARCH_FLAG=x86
+          if "${{ matrix.arch }}"=="arm64" set ARCH_FLAG=arm
+
+          call configure.bat qt6 %ARCH_FLAG% ^
           -D CMAKE_BUILD_TYPE=Release ^
           -D CMAKE_CONFIGURATION_TYPES=Release ^
           -D CMAKE_MSVC_DEBUG_INFORMATION_FORMAT= ^
@@ -152,7 +170,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         name: Upload artifact.
         with:
-          name: opengram-windows-x64
+          name: opengram-windows-${{ matrix.arch_label }}
           path: artifact\
           retention-days: 30
 
