@@ -146,7 +146,7 @@ jobs:
         run: |
           cd %TBUILD%\%REPO_NAME%\Telegram
 
-          set ARCH_FLAG=
+          set ARCH_FLAG=x64
           if "${{ matrix.arch }}"=="x64_x86" set ARCH_FLAG=x86
           if "${{ matrix.arch }}"=="arm64" set ARCH_FLAG=arm
 
