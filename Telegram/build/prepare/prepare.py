@@ -1629,7 +1629,8 @@ win:
     SET ZLIB_LIBS_DIR=%LIBS_DIR%\\zlib
     SET WEBP_DIR=%LIBS_DIR%\\libwebp
     SET LCMS2_DIR=%LIBS_DIR%\\liblcms2
-    configure -prefix "%LIBS_DIR%\\Qt-%QT%" ^
+""" + ("""    SET QT_X86_FEATURE_FLAGS=-no-feature-randomaccessasyncfile_qioring
+""" if win32 else "    SET QT_X86_FEATURE_FLAGS=\n") + """    configure -prefix "%LIBS_DIR%\\Qt-%QT%" ^
         %CONFIGURATIONS% ^
         -force-debug-info ^
         -opensource ^
@@ -1637,6 +1638,7 @@ win:
         -static ^
         -static-runtime ^
         -feature-c++20 ^
+        %QT_X86_FEATURE_FLAGS% ^
         -openssl linked ^
         -system-webp ^
         -system-zlib ^

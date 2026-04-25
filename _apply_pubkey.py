@@ -33,7 +33,11 @@ placeholder_re = re.compile(
     r'-----END RSA PUBLIC KEY-----"',
     re.DOTALL,
 )
-new_cpp, n = placeholder_re.subn(c_literal, cpp)
+# NOTE: pass the replacement as a lambda — re.sub treats string
+# replacements as templates and would interpret the backslash-newline
+# continuations and \\n escape sequences inside c_literal, producing a
+# broken C string. A function replacement is taken verbatim.
+new_cpp, n = placeholder_re.subn(lambda _: c_literal, cpp)
 if n == 0:
     raise SystemExit("Placeholder not found in mtproto_dc_options.cpp — already applied?")
 
