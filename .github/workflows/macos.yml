@@ -84,7 +84,7 @@ jobs:
           restore-keys: ${{ runner.OS }}-${{ matrix.arch }}-libs-
 
       - name: Libraries.
-        run: ./$REPO_NAME/Telegram/build/prepare/mac.sh skip-release silent
+        run: ./$REPO_NAME/Telegram/build/prepare/mac.sh silent
 
       - name: Build Opengram Desktop.
         env:
