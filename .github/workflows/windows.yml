@@ -25,7 +25,10 @@ jobs:
   windows:
     name: Windows ${{ matrix.arch_label }} build
     runs-on: ${{ matrix.arch == 'arm64' && 'windows-11-arm' || 'windows-latest' }}
-    timeout-minutes: 180
+    # x86 cross-build (HostX64→x86) doesn't reuse the x64 library cache and
+    # cleanly burns ~3h on prepare alone — push the wall-clock to the
+    # 6h GitHub maximum so it has time to finish the Telegram target.
+    timeout-minutes: 360
 
     strategy:
       fail-fast: false
