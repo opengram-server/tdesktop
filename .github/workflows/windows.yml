@@ -1,20 +1,9 @@
 name: Windows
 
 on:
-  push:
-    branches: [master, main]
-    paths-ignore:
-      - 'docs/**'
-      - '**.md'
-      - 'LEGAL'
-      - 'LICENSE'
-      - 'lib/xdg/**'
-      - 'snap/**'
-      - 'Telegram/build/docker/**'
-      - 'Telegram/SourceFiles/platform/linux/**'
-      - 'Telegram/SourceFiles/platform/mac/**'
-      - 'Telegram/configure.sh'
-      - 'Telegram/Telegram.plist'
+  # Auto-build on push is disabled — every commit on master shouldn't burn
+  # 3+ hours of GitHub-hosted runner time. Trigger manually via the
+  # "Run workflow" button on the Actions tab, or it'll fire on PR / release.
   pull_request:
     branches: [master, main]
   workflow_dispatch:
