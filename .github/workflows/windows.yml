@@ -143,6 +143,12 @@ jobs:
           %TBUILD%\%REPO_NAME%\Telegram\build\prepare\win.bat skip-release silent qt6
 
       - name: Build Opengram Desktop.
+        env:
+          # Repo secrets, fall back to public test credentials. Test creds
+          # are rate-limited on the official Telegram backend but are fine
+          # against our own opengra.me server.
+          TDESKTOP_API_ID: ${{ secrets.TDESKTOP_API_ID || '17349' }}
+          TDESKTOP_API_HASH: ${{ secrets.TDESKTOP_API_HASH || '344583e45741c457fe1862106095a5eb' }}
         run: |
           cd %TBUILD%\%REPO_NAME%\Telegram
 
@@ -155,7 +161,9 @@ jobs:
           -D CMAKE_CONFIGURATION_TYPES=Release ^
           -D CMAKE_MSVC_DEBUG_INFORMATION_FORMAT= ^
           -D DESKTOP_APP_DISABLE_AUTOUPDATE=ON ^
-          -D DESKTOP_APP_DISABLE_CRASH_REPORTS=ON
+          -D DESKTOP_APP_DISABLE_CRASH_REPORTS=ON ^
+          -D TDESKTOP_API_ID=%TDESKTOP_API_ID% ^
+          -D TDESKTOP_API_HASH=%TDESKTOP_API_HASH%
 
           cmake --build ..\out --config Release --parallel
 

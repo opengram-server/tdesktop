@@ -77,18 +77,25 @@ jobs:
           cache-to: type=gha,scope=env,mode=max
 
       - name: Build Opengram Desktop.
+        env:
+          TDESKTOP_API_ID: ${{ secrets.TDESKTOP_API_ID || '17349' }}
+          TDESKTOP_API_HASH: ${{ secrets.TDESKTOP_API_HASH || '344583e45741c457fe1862106095a5eb' }}
         run: |
           docker run --rm \
             -u $(id -u) \
             -v $PWD:/usr/src/tdesktop \
             -e CONFIG=Release \
+            -e TDESKTOP_API_ID \
+            -e TDESKTOP_API_HASH \
             $IMAGE_TAG \
             /usr/src/tdesktop/Telegram/build/docker/centos_env/build.sh \
             -D CMAKE_BUILD_TYPE=Release \
             -D CMAKE_CONFIGURATION_TYPES=Release \
             -D DESKTOP_APP_DISABLE_AUTOUPDATE=ON \
             -D DESKTOP_APP_DISABLE_CRASH_REPORTS=ON \
-            -D DESKTOP_APP_ENABLE_LTO=ON
+            -D DESKTOP_APP_ENABLE_LTO=ON \
+            -D TDESKTOP_API_ID=$TDESKTOP_API_ID \
+            -D TDESKTOP_API_HASH=$TDESKTOP_API_HASH
 
       - name: Verify build output.
         run: |
