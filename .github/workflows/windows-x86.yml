@@ -1,34 +1,19 @@
-name: Windows
+name: Windows x86
 
+# x86 cross-build (HostX64→x86) doesn't share library cache with the x64
+# build and burns ~3h on prepare alone — kept in a separate workflow so it
+# only runs when explicitly asked, instead of blocking every x64/arm64 push.
 on:
-  # Auto-build on push is disabled — every commit on master shouldn't burn
-  # 3+ hours of GitHub-hosted runner time. Trigger manually via the
-  # "Run workflow" button on the Actions tab, or it'll fire on PR / release.
-  pull_request:
-    branches: [master, main]
   workflow_dispatch:
   release:
     types: [created]
 
 jobs:
-  windows:
-    name: Windows ${{ matrix.arch_label }} build
-    runs-on: ${{ matrix.arch == 'arm64' && 'windows-11-arm' || 'windows-latest' }}
+  windows-x86:
+    name: Windows x86 build
+    runs-on: windows-latest
+    # x86 prepare alone is ~3h; the full build can graze the 6h hard cap.
     timeout-minutes: 360
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - arch: x64
-            arch_label: x64
-            libs_subdir: '\win64'
-          - arch: arm64
-            arch_label: arm64
-            libs_subdir: ''
-        # x86 cross-build lives in its own workflow (windows-x86.yml) — it
-        # doesn't reuse the x64 library cache and burns ~3h on prepare alone,
-        # so we trigger it manually instead of holding up x64/arm64 builds.
 
     env:
       PREPARE_PATH: "Telegram/build/prepare/prepare.py"
@@ -43,7 +28,7 @@ jobs:
           mkdir %userprofile%\TBuild\Libraries
           mklink /d %GITHUB_WORKSPACE%\TBuild %userprofile%\TBuild
           echo TBUILD=%GITHUB_WORKSPACE%\TBuild>>%GITHUB_ENV%
-          echo LibrariesPath=%GITHUB_WORKSPACE%\TBuild\Libraries${{ matrix.libs_subdir }}>>%GITHUB_ENV%
+          echo LibrariesPath=%GITHUB_WORKSPACE%\TBuild\Libraries>>%GITHUB_ENV%
 
       - name: Get repository name.
         shell: bash
@@ -88,7 +73,7 @@ jobs:
       - uses: ilammy/msvc-dev-cmd@v1
         name: Native Tools Command Prompt.
         with:
-          arch: ${{ matrix.arch }}
+          arch: x64_x86
           sdk: ${{ env.SDK }}
 
       - name: NuGet sources.
@@ -100,8 +85,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ env.TBUILD }}\ThirdParty
-          key: ${{ runner.OS }}-${{ matrix.arch }}-third-party-${{ env.CACHE_KEY }}
-          restore-keys: ${{ runner.OS }}-${{ matrix.arch }}-third-party-
+          key: ${{ runner.OS }}-x64_x86-third-party-${{ env.CACHE_KEY }}
+          restore-keys: ${{ runner.OS }}-x64_x86-third-party-
 
       - name: Libraries cache.
         uses: actions/cache@v4
@@ -112,8 +97,8 @@ jobs:
             !${{ env.LibrariesPath }}\[qQ]t[_-]*
             ${{ env.LibrariesPath }}\cache_keys\*
             !${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
-          key: ${{ runner.OS }}-${{ matrix.arch }}-libs-${{ env.CACHE_KEY }}
-          restore-keys: ${{ runner.OS }}-${{ matrix.arch }}-libs-
+          key: ${{ runner.OS }}-x64_x86-libs-${{ env.CACHE_KEY }}
+          restore-keys: ${{ runner.OS }}-x64_x86-libs-
 
       - name: Qt cache.
         uses: actions/cache@v4
@@ -121,8 +106,8 @@ jobs:
           path: |
             ${{ env.LibrariesPath }}\[qQ]t[_-]*
             ${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
-          key: ${{ runner.OS }}-${{ matrix.arch }}-qt6-${{ env.CACHE_KEY }}
-          restore-keys: ${{ runner.OS }}-${{ matrix.arch }}-qt6-
+          key: ${{ runner.OS }}-x64_x86-qt6-${{ env.CACHE_KEY }}
+          restore-keys: ${{ runner.OS }}-x64_x86-qt6-
 
       - name: Free disk space (Windows).
         shell: pwsh
@@ -180,10 +165,7 @@ jobs:
         run: |
           cd %TBUILD%\%REPO_NAME%\Telegram
 
-          set ARCH_FLAG=x64
-          if "${{ matrix.arch }}"=="arm64" set ARCH_FLAG=arm
-
-          call configure.bat qt6 %ARCH_FLAG% ^
+          call configure.bat qt6 x86 ^
           -D CMAKE_BUILD_TYPE=Release ^
           -D CMAKE_CONFIGURATION_TYPES=Release ^
           -D CMAKE_MSVC_DEBUG_INFORMATION_FORMAT= ^
@@ -205,7 +187,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         name: Upload artifact.
         with:
-          name: opengram-windows-${{ matrix.arch_label }}
+          name: opengram-windows-x86
           path: artifact\
           retention-days: 30
 
