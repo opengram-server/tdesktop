@@ -146,6 +146,10 @@ jobs:
           # ~14 GB free that windows-latest ships with. Wipe everything we
           # don't need on C: so cl.exe TEMP / PCH / Windows update don't run
           # the drive dry while the actual build lives on D:.
+          # NOTE: do NOT touch C:\ProgramData\Chocolatey — that's where the
+          # build prerequisites (ninja, cmake, etc.) live. Likewise leave
+          # Strawberry, msys64, Miniconda alone: they're harmless and at
+          # least Strawberry's perl is used by some prepare scripts.
           $targets = @(
             # Mobile/cross toolchains
             'C:\Android', 'C:\Program Files (x86)\Android', 'C:\Program Files\Google\Android',
@@ -155,10 +159,9 @@ jobs:
             'C:\hostedtoolcache\Java_Microsoft_jdk',
             'C:\hostedtoolcache\Java_Zulu_jdk',
             'C:\Program Files\Microsoft\jdk-*',
-            # Other languages / runtimes
+            # Other languages / runtimes (none of these are on prepare PATH)
             'C:\hostedtoolcache\go', 'C:\hostedtoolcache\Ruby', 'C:\hostedtoolcache\PyPy',
             'C:\hostedtoolcache\node', 'C:\hostedtoolcache\boost',
-            'C:\Strawberry', 'C:\Miniconda', 'C:\msys64', 'C:\Rust', 'C:\rtools43',
             # .NET / SQL / Mongo (not needed for native C++ build)
             'C:\Program Files\dotnet', 'C:\Program Files (x86)\dotnet',
             'C:\Program Files\MongoDB', 'C:\Program Files (x86)\MongoDB',
@@ -176,8 +179,8 @@ jobs:
             # Visual Studio bits we don't need (other workloads)
             'C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\CommonExtensions\Microsoft\TeamFoundation',
             'C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\Extensions\TestPlatform',
-            # Caches that fill up over time
-            'C:\ProgramData\Chocolatey\lib',
+            # Visual Studio installer cache — keep VS itself, drop only
+            # the package cache used to repair/reinstall workloads.
             'C:\ProgramData\Package Cache',
             'C:\Users\runneradmin\.npm',
             'C:\Users\runneradmin\AppData\Local\NuGet\v3-cache',
