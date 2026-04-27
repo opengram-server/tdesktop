@@ -112,14 +112,14 @@ jobs:
           nuget sources Add -Source https://api.nuget.org/v3/index.json & exit 0
 
       - name: ThirdParty cache.
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ env.TBUILD }}\ThirdParty
           key: ${{ runner.OS }}-x64_x86-third-party-${{ env.CACHE_KEY }}
           restore-keys: ${{ runner.OS }}-x64_x86-third-party-
 
       - name: Libraries cache.
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ${{ env.LibrariesPath }}\*
@@ -131,7 +131,7 @@ jobs:
           restore-keys: ${{ runner.OS }}-x64_x86-libs-
 
       - name: Qt cache.
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ${{ env.LibrariesPath }}\[qQ]t[_-]*
