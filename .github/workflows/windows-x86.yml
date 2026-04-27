@@ -203,31 +203,6 @@ jobs:
         run: |
           %TBUILD%\%REPO_NAME%\Telegram\build\prepare\win.bat silent qt6
 
-      - name: Reclaim disk after libraries.
-        # Prepare leaves a lot of intermediates that configure.bat / link no
-        # longer needs. Wipe them before the Telegram target starts writing
-        # ~50–100 MB .obj per TU; x86 routinely runs the runner C: drive dry
-        # without this step (cl.exe → C1085 No space left on device).
-        shell: pwsh
-        run: |
-          $libs = $env:LibrariesPath
-          $third = "$env:TBUILD\ThirdParty"
-          $patterns = @(
-            "*.pdb", "*.ilk", "*.exp", "*.obj", "*.o", "*.idb",
-            "*.tlog", "*.iobj", "*.ipdb", "*.lastbuildstate"
-          )
-          foreach ($root in @($libs, $third)) {
-            if (-not (Test-Path $root)) { continue }
-            foreach ($pat in $patterns) {
-              Get-ChildItem -Path $root -Recurse -File -Filter $pat -ErrorAction SilentlyContinue |
-                Remove-Item -Force -ErrorAction SilentlyContinue
-            }
-          }
-          Get-ChildItem -Path $libs -Recurse -Directory -ErrorAction SilentlyContinue |
-            Where-Object { $_.Name -in @('Debug','x64','arm64') } |
-            Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
-          Get-PSDrive -Name C | Select-Object Used,Free,@{N='FreeGB';E={[math]::Round($_.Free/1GB,1)}}
-
       - name: Build Opengram Desktop.
         env:
           # Repo secrets, fall back to public test credentials. Test creds
