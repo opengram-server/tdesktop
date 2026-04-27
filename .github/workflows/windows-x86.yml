@@ -24,11 +24,41 @@ jobs:
 
     steps:
       - name: Prepare directories.
+        # x86 cross-build with Qt 6.11 static + Telegram targets needs ~80 GB
+        # of disk between prepare libs and build .obj/.pdb. windows-latest
+        # is documented as a 14 GB SSD runner; in practice the C: drive
+        # holds ~150 GB total and D: is sometimes present with extra space.
+        # Pick the drive with the most free space at runtime and host TBuild
+        # there, then symlink it back into %userprofile% / %GITHUB_WORKSPACE%
+        # so the rest of the workflow uses the standard paths.
+        shell: pwsh
         run: |
-          mkdir %userprofile%\TBuild\Libraries
-          mklink /d %GITHUB_WORKSPACE%\TBuild %userprofile%\TBuild
-          echo TBUILD=%GITHUB_WORKSPACE%\TBuild>>%GITHUB_ENV%
-          echo LibrariesPath=%GITHUB_WORKSPACE%\TBuild\Libraries>>%GITHUB_ENV%
+          $candidates = @('D:\','C:\') | Where-Object { Test-Path $_ }
+          $best = $null
+          foreach ($drv in $candidates) {
+            $free = (Get-PSDrive -Name $drv.TrimEnd(':\')).Free
+            Write-Host ("{0} free: {1:N1} GB" -f $drv, ($free / 1GB))
+            if (-not $best -or $free -gt $best.Free) {
+              $best = [PSCustomObject]@{ Drive = $drv; Free = $free }
+            }
+          }
+          $tbuildHost = (Join-Path $best.Drive 'TBuild')
+          Write-Host "Hosting TBuild on $tbuildHost"
+          New-Item -ItemType Directory -Force -Path $tbuildHost | Out-Null
+          New-Item -ItemType Directory -Force -Path (Join-Path $tbuildHost 'Libraries') | Out-Null
+
+          $userTBuild = Join-Path $env:USERPROFILE 'TBuild'
+          $wsTBuild   = Join-Path $env:GITHUB_WORKSPACE 'TBuild'
+          # Only create a junction if the path isn't already the host target.
+          if ((Resolve-Path $userTBuild -ErrorAction SilentlyContinue).Path -ne $tbuildHost) {
+            cmd /c mklink /d "$userTBuild" "$tbuildHost"
+          }
+          if ((Resolve-Path $wsTBuild -ErrorAction SilentlyContinue).Path -ne $tbuildHost) {
+            cmd /c mklink /d "$wsTBuild" "$tbuildHost"
+          }
+
+          "TBUILD=$wsTBuild"          | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          "LibrariesPath=$wsTBuild\Libraries" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
 
       - name: Get repository name.
         shell: bash
@@ -113,40 +143,55 @@ jobs:
         shell: pwsh
         run: |
           # Qt 6.11 debug+release on a static-runtime build blows past the
-          # ~14 GB free that windows-latest ships with. Wipe runner-bundled
-          # toolchains we don't need so PCH/.pdb writes stop hitting ENOSPC.
+          # ~14 GB free that windows-latest ships with. Wipe everything we
+          # don't need on C: so cl.exe TEMP / PCH / Windows update don't run
+          # the drive dry while the actual build lives on D:.
           $targets = @(
-            'C:\Android',
-            'C:\Program Files (x86)\Android',
-            'C:\Program Files\Google\Android',
+            # Mobile/cross toolchains
+            'C:\Android', 'C:\Program Files (x86)\Android', 'C:\Program Files\Google\Android',
+            # JDKs we don't use
             'C:\hostedtoolcache\Java_Adopt_jdk',
             'C:\hostedtoolcache\Java_Temurin-Hotspot_jdk',
             'C:\hostedtoolcache\Java_Microsoft_jdk',
             'C:\hostedtoolcache\Java_Zulu_jdk',
-            'C:\hostedtoolcache\go',
-            'C:\hostedtoolcache\Ruby',
-            'C:\hostedtoolcache\PyPy',
-            'C:\hostedtoolcache\node',
-            'C:\Program Files\dotnet',
-            'C:\Program Files (x86)\dotnet',
-            'C:\Program Files\MongoDB',
-            'C:\Program Files (x86)\MongoDB',
+            'C:\Program Files\Microsoft\jdk-*',
+            # Other languages / runtimes
+            'C:\hostedtoolcache\go', 'C:\hostedtoolcache\Ruby', 'C:\hostedtoolcache\PyPy',
+            'C:\hostedtoolcache\node', 'C:\hostedtoolcache\boost',
+            'C:\Strawberry', 'C:\Miniconda', 'C:\msys64', 'C:\Rust', 'C:\rtools43',
+            # .NET / SQL / Mongo (not needed for native C++ build)
+            'C:\Program Files\dotnet', 'C:\Program Files (x86)\dotnet',
+            'C:\Program Files\MongoDB', 'C:\Program Files (x86)\MongoDB',
             'C:\Program Files\Microsoft SQL Server',
             'C:\Program Files (x86)\Microsoft SQL Server',
             'C:\Program Files (x86)\WindowsPowerShell\Modules\Az*',
+            # Browsers (won't be launched by tests)
             'C:\Program Files\Mozilla Firefox',
             'C:\Program Files\Mozilla Maintenance Service',
             'C:\Program Files (x86)\Google\Chrome',
             'C:\Program Files\Google\Chrome',
-            'C:\Program Files\Microsoft\Edge'
+            'C:\Program Files\Microsoft\Edge',
+            # Selenium / browser automation
+            'C:\selenium', 'C:\SeleniumWebDrivers',
+            # Visual Studio bits we don't need (other workloads)
+            'C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\CommonExtensions\Microsoft\TeamFoundation',
+            'C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\Extensions\TestPlatform',
+            # Caches that fill up over time
+            'C:\ProgramData\Chocolatey\lib',
+            'C:\ProgramData\Package Cache',
+            'C:\Users\runneradmin\.npm',
+            'C:\Users\runneradmin\AppData\Local\NuGet\v3-cache',
+            "$env:TEMP\*", "$env:windir\Temp\*"
           )
           foreach ($t in $targets) {
-            if (Test-Path $t) {
-              Write-Host "Removing $t"
-              Remove-Item -Recurse -Force $t -ErrorAction SilentlyContinue
+            $resolved = Resolve-Path -Path $t -ErrorAction SilentlyContinue
+            foreach ($p in $resolved) {
+              Write-Host "Removing $p"
+              Remove-Item -Recurse -Force -LiteralPath $p.Path -ErrorAction SilentlyContinue
             }
           }
-          Get-PSDrive -Name C | Select-Object Used,Free,@{N='FreeGB';E={[math]::Round($_.Free/1GB,1)}}
+          Get-PSDrive -Name C, D -ErrorAction SilentlyContinue |
+              Select-Object Name, Used, Free, @{N='FreeGB';E={[math]::Round($_.Free/1GB,1)}}
 
       - name: Libraries.
         env:
@@ -154,6 +199,31 @@ jobs:
           GYP_MSVS_VERSION: 2022
         run: |
           %TBUILD%\%REPO_NAME%\Telegram\build\prepare\win.bat silent qt6
+
+      - name: Reclaim disk after libraries.
+        # Prepare leaves a lot of intermediates that configure.bat / link no
+        # longer needs. Wipe them before the Telegram target starts writing
+        # ~50–100 MB .obj per TU; x86 routinely runs the runner C: drive dry
+        # without this step (cl.exe → C1085 No space left on device).
+        shell: pwsh
+        run: |
+          $libs = $env:LibrariesPath
+          $third = "$env:TBUILD\ThirdParty"
+          $patterns = @(
+            "*.pdb", "*.ilk", "*.exp", "*.obj", "*.o", "*.idb",
+            "*.tlog", "*.iobj", "*.ipdb", "*.lastbuildstate"
+          )
+          foreach ($root in @($libs, $third)) {
+            if (-not (Test-Path $root)) { continue }
+            foreach ($pat in $patterns) {
+              Get-ChildItem -Path $root -Recurse -File -Filter $pat -ErrorAction SilentlyContinue |
+                Remove-Item -Force -ErrorAction SilentlyContinue
+            }
+          }
+          Get-ChildItem -Path $libs -Recurse -Directory -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -in @('Debug','x64','arm64') } |
+            Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+          Get-PSDrive -Name C | Select-Object Used,Free,@{N='FreeGB';E={[math]::Round($_.Free/1GB,1)}}
 
       - name: Build Opengram Desktop.
         env:
@@ -174,7 +244,11 @@ jobs:
           -D TDESKTOP_API_ID=%TDESKTOP_API_ID% ^
           -D TDESKTOP_API_HASH=%TDESKTOP_API_HASH%
 
-          cmake --build ..\out --config Release --parallel
+          rem --parallel 2 (instead of unlimited): the Telegram target has
+          rem several TUs whose temp .obj exceeds 200 MB each, and the
+          rem windows-latest C: drive is too small to hold 4-8 of them
+          rem simultaneously. Slower wall-clock but actually finishes.
+          cmake --build ..\out --config Release --parallel 2
 
       - name: Package artifact.
         run: |
