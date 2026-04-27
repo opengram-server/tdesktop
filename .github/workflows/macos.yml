@@ -107,7 +107,7 @@ jobs:
           cd artifact
           tar -cJf "opengram-macos-${{ matrix.arch }}.tar.xz" Opengram.app Updater 2>/dev/null || tar -cJf "opengram-macos-${{ matrix.arch }}.tar.xz" Opengram.app
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         name: Upload artifact.
         with:
           name: opengram-macos-${{ matrix.arch }}

@@ -107,7 +107,7 @@ jobs:
           tar -cJf opengram-linux-x64.tar.xz opengram-linux-x64
 
       - name: Upload artifact.
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: opengram-linux-x64
           path: out/Release/opengram-linux-x64.tar.xz
